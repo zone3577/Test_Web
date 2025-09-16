@@ -41,36 +41,39 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       const { data, error } = await supabase.from("products").select("*");
-      
+
       if (error) {
         throw error;
       }
-      
+
       setProducts(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+      setError(
+        err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการโหลดข้อมูล"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const filterProducts = () => {
-    let filtered = products.filter((product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    let filtered = products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Sort products
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-      
+
       if (sortBy === "price") {
         aValue = Number(aValue);
         bValue = Number(bValue);
       }
-      
+
       if (sortOrder === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
@@ -82,17 +85,17 @@ export default function ProductsPage() {
   };
 
   const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: currency || 'THB',
+    return new Intl.NumberFormat("th-TH", {
+      style: "currency",
+      currency: currency || "THB",
     }).format(price);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -102,7 +105,9 @@ export default function ProductsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center min-h-96">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-            <span className="ml-4 text-lg text-gray-600">กำลังโหลดข้อมูล...</span>
+            <span className="ml-4 text-lg text-gray-600">
+              กำลังโหลดข้อมูล...
+            </span>
           </div>
         </div>
       </div>
@@ -147,8 +152,18 @@ export default function ProductsPage() {
             {/* Search Input */}
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
               <input
@@ -164,7 +179,9 @@ export default function ProductsPage() {
             <div className="flex gap-2">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "name" | "price" | "created_at")}
+                onChange={(e) =>
+                  setSortBy(e.target.value as "name" | "price" | "created_at")
+                }
                 className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="name">เรียงตามชื่อ</option>
@@ -172,7 +189,9 @@ export default function ProductsPage() {
                 <option value="created_at">เรียงตามวันที่</option>
               </select>
               <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                onClick={() =>
+                  setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                }
                 className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {sortOrder === "asc" ? "⬆️" : "⬇️"}
@@ -182,7 +201,8 @@ export default function ProductsPage() {
 
           {/* Results Count */}
           <div className="mt-4 text-sm text-gray-600">
-            พบสินค้า {filteredProducts.length} รายการ จากทั้งหมด {products.length} รายการ
+            พบสินค้า {filteredProducts.length} รายการ จากทั้งหมด{" "}
+            {products.length} รายการ
           </div>
         </div>
 
@@ -204,12 +224,14 @@ export default function ProductsPage() {
                   <h3 className="text-xl font-bold text-gray-800 truncate flex-1">
                     {product.name}
                   </h3>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    product.available 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {product.available ? 'มีสินค้า' : 'หมด'}
+                  <span
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      product.available
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {product.available ? "มีสินค้า" : "หมด"}
                   </span>
                 </div>
 
@@ -220,9 +242,11 @@ export default function ProductsPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">SKU:</span>
-                    <span className="font-mono text-gray-800">{product.sku}</span>
+                    <span className="font-mono text-gray-800">
+                      {product.sku}
+                    </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">ราคา:</span>
                     <span className="text-2xl font-bold text-blue-600">
@@ -234,9 +258,7 @@ export default function ProductsPage() {
                     <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
                       <span className="text-gray-500">ข้อมูลเพิ่มเติม:</span>
                       <pre className="mt-1 text-gray-700 overflow-hidden">
-                        {typeof product.metadata === "object" 
-                          ? JSON.stringify(product.metadata, null, 2) 
-                          : product.metadata}
+                        {product.metadata}
                       </pre>
                     </div>
                   )}
@@ -252,16 +274,15 @@ export default function ProductsPage() {
                   disabled={!product.available}
                   className={`w-full mt-4 py-3 px-4 rounded-lg font-semibold transition-colors ${
                     product.available
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  {!product.available 
-                    ? '� สินค้าหมด' 
+                  {!product.available
+                    ? "� สินค้าหมด"
                     : getItemQuantity(product.id) > 0
                     ? `�🛒 เพิ่มลงตะกร้า (${getItemQuantity(product.id)})`
-                    : '� เพิ่มลงตะกร้า'
-                  }
+                    : "� เพิ่มลงตะกร้า"}
                 </button>
               </div>
             </div>

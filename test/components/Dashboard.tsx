@@ -57,15 +57,40 @@ export default function Dashboard() {
         message: 'โปรดรอสักครู่',
         duration: 2000
       });
-      await signOut();
+      
+      const { error } = await signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        addNotification({
+          type: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          message: 'ไม่สามารถออกจากระบบได้ แต่จะทำการล้างข้อมูลท้องถิ่น',
+          duration: 5000
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'ออกจากระบบสำเร็จ',
+          message: 'ขอบคุณที่ใช้บริการ',
+          duration: 3000
+        });
+      }
+      
+      // Redirect to home page regardless of error
+      window.location.href = '/';
+      
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Exception during sign out:', error);
       addNotification({
-        type: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        message: 'ไม่สามารถออกจากระบบได้',
-        duration: 5000
+        type: 'warning',
+        title: 'ออกจากระบบ',
+        message: 'ทำการล้างข้อมูลเซสชันท้องถิ่นแล้ว',
+        duration: 3000
       });
+      
+      // Force redirect even if there's an exception
+      window.location.href = '/';
     }
   };
 

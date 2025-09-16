@@ -20,13 +20,14 @@ export default function Cart() {
   };
 
   const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    // Simulate checkout process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    alert('สั่งซื้อเรียบร้อยแล้ว! ขอบคุณที่ใช้บริการ');
-    clearCart();
-    toggleCart();
-    setIsCheckingOut(false);
+    if (state.items.length === 0) {
+      alert('ตะกร้าสินค้าว่างเปล่า')
+      return
+    }
+    
+    // นำผู้ใช้ไปหน้า orders เพื่อทำการสั่งซื้อ
+    toggleCart()
+    window.location.href = '/orders'
   };
 
   if (!state.isOpen) return null;
@@ -35,7 +36,7 @@ export default function Cart() {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0  bg-opacity-50 z-40"
         onClick={toggleCart}
       />
       

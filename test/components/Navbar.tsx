@@ -2,8 +2,10 @@
 
 import React from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { isAuthSessionError } from '@/utils/authUtils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import NotificationSystem from './NotificationSystem'
 
 export default function Navbar() {
   const { user, session, loading, signOut } = useAuth()
@@ -18,7 +20,17 @@ export default function Navbar() {
       
       if (error) {
         console.error('SignOut failed:', error)
-        alert('เกิดข้อผิดพลาดในการออกจากระบบ: ' + error.message)
+        
+        // Check if it's a session-related error that we can ignore
+        if (isAuthSessionError(error)) {
+          console.log('Session error detected, treating as successful logout')
+          router.push('/')
+          setTimeout(() => {
+            window.location.reload()
+          }, 100)
+        } else {
+          alert('เกิดข้อผิดพลาดในการออกจากระบบ: ' + error.message)
+        }
       } else {
         console.log('SignOut successful, redirecting...')
         router.push('/')
@@ -27,9 +39,19 @@ export default function Navbar() {
           window.location.reload()
         }, 100)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Exception in handleSignOut:', err)
-      alert('เกิดข้อผิดพลาดในการออกจากระบบ')
+      
+      // Check if it's a session-related error
+      if (isAuthSessionError(err)) {
+        console.log('Session exception detected, treating as successful logout')
+        router.push('/')
+        setTimeout(() => {
+          window.location.reload()
+        }, 100)
+      } else {
+        alert('เกิดข้อผิดพลาดในการออกจากระบบ')
+      }
     }
   }
 
@@ -65,18 +87,25 @@ export default function Navbar() {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
+                <Link
+                  href="/dashboard"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  🛍️ ช้อปปิ้ง
+                </Link>
+                <Link
+                  href="/orders"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  📋 ประวัติการสั่งซื้อ
+                </Link>
+                <NotificationSystem />
                 <span className="text-gray-700">
                   สวัสดี, {user.email}
                 </span>
                 <button
-                  onClick={() => console.log('Current user:', user, 'Current session:', session)}
-                  className="bg-gray-500 text-white px-2 py-1 rounded text-xs"
-                >
-                  Debug
-                </button>
-                <button
                   onClick={handleSignOut}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200"
+                  className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700"
                 >
                   ออกจากระบบ
                 </button>
