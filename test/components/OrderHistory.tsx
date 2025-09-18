@@ -85,6 +85,11 @@ export default function OrderHistory() {
     }
 
     try {
+      // ตรวจสอบว่า function create_order มีอยู่หรือไม่
+      console.log('🛒 Starting order creation...')
+      console.log('User ID:', user.id)
+      console.log('Cart items:', items)
+      
       // แปลง cart items เป็น format ที่ function ต้องการ
       const orderItems = items.map(item => ({
         product_id: item.id,
@@ -92,16 +97,102 @@ export default function OrderHistory() {
         price: item.price
       }))
 
-      const { data, error } = await supabase
-        .rpc('create_order', {
-          p_user_id: user.id,
-          p_items: JSON.stringify(orderItems),
-          p_shipping_address: orderForm.shipping_address || null,
-          p_phone: orderForm.phone || null,
-          p_notes: orderForm.notes || null
-        })
+      console.log('📦 Order items formatted:', orderItems)
 
-      if (error) throw error
+      // ลองเรียก function create_order ก่อน
+      let orderResult = null
+      let useFallback = false
+      
+      try {
+        const { data, error } = await supabase
+          .rpc('create_order', {
+            p_user_id: user.id,
+            p_items: JSON.stringify(orderItems),
+            p_shipping_address: orderForm.shipping_address || null,
+            p_phone: orderForm.phone || null,
+            p_notes: orderForm.notes || null
+          })
+
+        if (error) {
+          console.error('❌ Supabase RPC Error:', error)
+          
+          // ตรวจสอบว่าเป็น error เรื่อง function ไม่มีหรือไม่
+          if (error.message?.includes('function create_order') || error.code === '42883') {
+            console.log('🔄 Function not found, using fallback method...')
+            useFallback = true
+          } else {
+            throw error
+          }
+        } else {
+          orderResult = data
+        }
+      } catch (rpcError: any) {
+        if (rpcError.message?.includes('function create_order') || rpcError.code === '42883') {
+          console.log('🔄 Function not found, using fallback method...')
+          useFallback = true
+        } else {
+          throw rpcError
+        }
+      }
+
+      // ถ้า function ไม่มี ใช้วิธี manual insert
+      if (useFallback) {
+        console.log('📝 Using manual order creation...')
+        
+        // สร้าง order ด้วยวิธี manual
+        const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        
+        // Insert order
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id,
+            total_amount: totalAmount,
+            shipping_address: orderForm.shipping_address || null,
+            phone: orderForm.phone || null,
+            notes: orderForm.notes || null,
+            status: 'pending',
+            payment_status: 'pending'
+          })
+          .select()
+          .single()
+
+        if (orderError) throw orderError
+
+        const orderId = orderData.id
+
+        // Insert order items
+        const orderItemsToInsert = items.map(item => ({
+          order_id: orderId,
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItemsToInsert)
+
+        if (itemsError) throw itemsError
+
+        // สร้าง notification (ถ้าทำได้)
+        try {
+          await supabase
+            .from('notifications')
+            .insert({
+              title: 'มีออเดอร์ใหม่',
+              message: `มีการสั่งซื้อสินค้าใหม่ รหัสออเดอร์: ${orderId}`,
+              type: 'order',
+              related_order_id: orderId
+            })
+        } catch (notifError) {
+          console.log('⚠️ Could not create notification:', notifError)
+        }
+
+        orderResult = orderId
+      }
+
+      console.log('✅ Order created successfully:', orderResult)
 
       // ล้างตะกร้า
       clearCart()
@@ -115,13 +206,30 @@ export default function OrderHistory() {
       setShowOrderForm(false)
       
       // โหลดออเดอร์ใหม่
-      loadOrders()
+      await loadOrders()
       
-      alert('สั่งซื้อสำเร็จ! รหัสออเดอร์: ' + data)
+      alert('🎉 สั่งซื้อสำเร็จ!\n\nรหัสออเดอร์: ' + orderResult + '\n\nขอบคุณที่ใช้บริการ')
       
-    } catch (error) {
-      console.error('Error creating order:', error)
-      alert('เกิดข้อผิดพลาดในการสั่งซื้อ')
+    } catch (error: any) {
+      console.error('💥 Error creating order:', error)
+      
+      let errorMessage = 'เกิดข้อผิดพลาดในการสั่งซื้อ'
+      
+      if (error.message) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '❌ ปัญหาการเชื่อมต่อ\nกรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่'
+        } else if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+          errorMessage = '❌ ไม่มีสิทธิ์ในการสั่งซื้อ\nกรุณาเข้าสู่ระบบใหม่'
+        } else if (error.message.includes('validation') || error.message.includes('constraint')) {
+          errorMessage = '❌ ข้อมูลไม่ถูกต้อง\nกรุณาตรวจสอบข้อมูลและลองใหม่'
+        } else if (error.message.includes('does not exist') || error.message.includes('relation')) {
+          errorMessage = '❌ ระบบยังไม่พร้อม: ตารางฐานข้อมูลยังไม่ถูกสร้าง\n\nกรุณาติดต่อ Admin เพื่อ setup database'
+        } else {
+          errorMessage = '❌ ' + error.message
+        }
+      }
+      
+      alert(errorMessage + '\n\nหากปัญหายังคงอยู่ กรุณาติดต่อ Admin')
     }
   }
 
@@ -142,7 +250,7 @@ export default function OrderHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen  bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">🛒 ประวัติการสั่งซื้อ</h1>
@@ -158,7 +266,7 @@ export default function OrderHistory() {
 
         {/* Order Form Modal */}
         {showOrderForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-medium mb-4">📝 ยืนยันการสั่งซื้อ</h3>
               

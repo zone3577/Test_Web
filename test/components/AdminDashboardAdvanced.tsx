@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAdminAuth, withAdminAuth } from '@/contexts/AdminAuthContext'
 import { createClient } from '@/utils/supabase/client'
+import OrdersDebugComponent from './OrdersDebugComponent'
 
 interface Product {
   id: string
@@ -123,15 +124,37 @@ function AdminDashboard() {
       }
 
       if (activeTab === 'orders' || activeTab === 'overview') {
-        const { data: ordersData } = await supabase
+        console.log('🔍 Loading orders data...')
+        
+        // ลองแบบง่ายๆ ก่อน
+        const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select(`
-            *,
-            profiles!orders_user_id_fkey(email, full_name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false })
         
-        if (ordersData) setOrders(ordersData)
+        console.log('📊 Orders raw data:', ordersData)
+        console.log('❌ Orders error:', ordersError)
+        
+        if (ordersData) {
+          // ดึงข้อมูล user profiles แยก
+          const ordersWithProfiles = await Promise.all(
+            ordersData.map(async (order) => {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', order.user_id)
+                .single()
+              
+              return {
+                ...order,
+                profiles: profile
+              }
+            })
+          )
+          
+          console.log('👥 Orders with profiles:', ordersWithProfiles)
+          setOrders(ordersWithProfiles)
+        }
       }
 
       if (activeTab === 'notifications' || activeTab === 'overview') {
@@ -787,112 +810,7 @@ function AdminDashboard() {
         {activeTab === 'orders' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">🛒 จัดการคำสั่งซื้อ</h2>
-            
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b">
-                <h3 className="text-lg font-medium">คำสั่งซื้อทั้งหมด</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        รหัสออเดอร์
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        ลูกค้า
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        ยอดรวม
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        สถานะ
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        วันที่สั่ง
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        การจัดการ
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {orders.map((order) => (
-                      <tr key={order.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          #{order.id.slice(0, 8)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {order.profiles?.full_name || 'ไม่ระบุชื่อ'}
-                            </div>
-                            <div className="text-sm text-gray-500">{order.profiles?.email}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ฿{order.total_amount.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                            order.status === 'processing' ? 'bg-purple-100 text-purple-800' :
-                            order.status === 'shipped' ? 'bg-indigo-100 text-indigo-800' :
-                            order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {order.status === 'pending' ? 'รอดำเนินการ' :
-                             order.status === 'confirmed' ? 'ยืนยันแล้ว' :
-                             order.status === 'processing' ? 'กำลังเตรียม' :
-                             order.status === 'shipped' ? 'จัดส่งแล้ว' :
-                             order.status === 'delivered' ? 'ส่งเสร็จแล้ว' :
-                             order.status === 'cancelled' ? 'ยกเลิก' : order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(order.created_at).toLocaleDateString('th-TH')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <select
-                            value={order.status}
-                            onChange={async (e) => {
-                              try {
-                                const { error } = await supabase
-                                  .from('orders')
-                                  .update({ status: e.target.value })
-                                  .eq('id', order.id)
-                                
-                                if (error) throw error
-                                loadDashboardData()
-                              } catch (error) {
-                                console.error('Error updating order status:', error)
-                                alert('เกิดข้อผิดพลาดในการอัพเดทสถานะ')
-                              }
-                            }}
-                            className="text-xs border-gray-300 rounded"
-                          >
-                            <option value="pending">รอดำเนินการ</option>
-                            <option value="confirmed">ยืนยันแล้ว</option>
-                            <option value="processing">กำลังเตรียม</option>
-                            <option value="shipped">จัดส่งแล้ว</option>
-                            <option value="delivered">ส่งเสร็จแล้ว</option>
-                            <option value="cancelled">ยกเลิก</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {orders.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">ยังไม่มีคำสั่งซื้อ</p>
-                </div>
-              )}
-            </div>
+            <OrdersDebugComponent />
           </div>
         )}
 
