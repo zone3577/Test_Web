@@ -64,7 +64,6 @@ export default function ProductsPage() {
         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Sort products
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
